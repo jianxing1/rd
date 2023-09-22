@@ -21,6 +21,7 @@ from matplotlib.ticker import NullFormatter
 from scipy.spatial.distance import pdist
 import matplotlib
 import pickle
+import time
 
 def cal_anomaly_map(fs_list, ft_list, out_size=224, amap_mode='mul'):
     if amap_mode == 'mul':
@@ -101,7 +102,6 @@ def evaluation(encoder, bn, decoder, dataloader,device,_class_=None):
         #with open('{}_vis.pkl'.format(_class_), 'wb') as f:
         #    pickle.dump(vis_data, f, pickle.HIGHEST_PROTOCOL)
 
-
         auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
     return auroc_px, auroc_sp, round(np.mean(aupro_list),3)
@@ -140,10 +140,14 @@ def visualization(_class_):
     print(device)
 
     data_transform, gt_transform = get_data_transforms(256, 256)
-    test_path = '../mvtec/' + _class_
-    ckp_path = './checkpoints/' + 'rm_1105_wres50_ff_mm_'+_class_+'.pth'
+    test_path = './mvtec_anomaly_detection/' + _class_
+    ckp_path = './checkpoints/' + 'wres50_'+_class_+'199.pth'
     test_data = MVTecDataset(root=test_path, transform=data_transform, gt_transform=gt_transform, phase="test")
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=False)
+    
+    train_path = './mvtec_anomaly_detection/' + _class_ + '/train'
+    train_data = ImageFolder(root=train_path, transform=data_transform)
+    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True)
 
     encoder, bn = wide_resnet50_2(pretrained=True)
     encoder = encoder.to(device)
@@ -186,22 +190,23 @@ def visualization(_class_):
             ano_map = cvt2heatmap(ano_map*255)
             img = cv2.cvtColor(img.permute(0, 2, 3, 1).cpu().numpy()[0] * 255, cv2.COLOR_BGR2RGB)
             img = np.uint8(min_max_norm(img)*255)
-            #if not os.path.exists('./results_all/'+_class_):
-            #    os.makedirs('./results_all/'+_class_)
-            #cv2.imwrite('./results_all/'+_class_+'/'+str(count)+'_'+'org.png',img)
+            if not os.path.exists('./results_all/'+_class_):
+               os.makedirs('./results_all/'+_class_)
+            cv2.imwrite('./results_all/'+_class_+'/'+str(count)+'_'+'org.png',img)
             #plt.imshow(img)
             #plt.axis('off')
             #plt.savefig('org.png')
             #plt.show()
             ano_map = show_cam_on_image(img, ano_map)
-            #cv2.imwrite('./results_all/'+_class_+'/'+str(count)+'_'+'ad.png', ano_map)
-            plt.imshow(ano_map)
+            cv2.imwrite('./results_all/'+_class_+'/'+str(count)+'_'+'ad.png', ano_map)
+            # plt.imshow(ano_map)
             plt.axis('off')
             #plt.savefig('ad.png')
-            plt.show()
+            # plt.show()
 
             gt = gt.cpu().numpy().astype(int)[0][0]*255
-            #cv2.imwrite('./results/'+_class_+'_'+str(count)+'_'+'gt.png', gt)
+            # print(gt)
+            cv2.imwrite('./results_all/'+_class_+'/'+str(count)+'_'+'gt.png', gt)
 
             #b, c, h, w = inputs[2].shape
             #t_feat = F.normalize(inputs[2], p=2).view(c, -1).permute(1, 0).cpu().numpy()
@@ -227,7 +232,75 @@ def visualization(_class_):
             #if count>20:
             #    return 0
                 #assert 1==2
+        # for img, gt, label, _ in train_dataloader:
+'''
+        for img, gt in train_dataloader:
+            # if (label.item() == 0):
+            #     continue
+            #if count <= 10:
+            #    count += 1
+            #    continue
 
+            decoder.eval()
+            bn.eval()
+
+            img = img.to(device)
+            inputs = encoder(img)
+            outputs = decoder(bn(inputs))
+
+            #inputs.append(feature)
+            #inputs.append(outputs)
+            #t_sne(inputs)
+
+
+            anomaly_map, amap_list = cal_anomaly_map([inputs[-1]], [outputs[-1]], img.shape[-1], amap_mode='a')
+            anomaly_map = gaussian_filter(anomaly_map, sigma=4)
+            # ano_map = min_max_norm(anomaly_map)
+            ano_map = cvt2heatmap(ano_map*255)
+            img = cv2.cvtColor(img.permute(0, 2, 3, 1).cpu().numpy()[0] * 255, cv2.COLOR_BGR2RGB)
+            img = np.uint8(min_max_norm(img)*255)
+            if not os.path.exists('./results_alll200/'+_class_):
+               os.makedirs('./results_alll200/'+_class_)
+            cv2.imwrite('./results_alll200/'+_class_+'/'+str(count)+'_'+'org.png',img)
+            #plt.imshow(img)
+            #plt.axis('off')
+            #plt.savefig('org.png')
+            #plt.show()
+            ano_map = show_cam_on_image(img, ano_map)
+            cv2.imwrite('./results_alll200/'+_class_+'/'+str(count)+'_'+'ad.png', ano_map)
+            # plt.imshow(ano_map)
+            plt.axis('off')
+            #plt.savefig('ad.png')
+            # plt.show()
+
+            # gt = gt.cpu().numpy().astype(int)[0][0]*255
+            # cv2.imwrite('./results_alll/'+_class_+'/'+str(count)+'_'+'gt.png', gt)
+
+            #b, c, h, w = inputs[2].shape
+            #t_feat = F.normalize(inputs[2], p=2).view(c, -1).permute(1, 0).cpu().numpy()
+            #s_feat = F.normalize(outputs[2], p=2).view(c, -1).permute(1, 0).cpu().numpy()
+            #c = 1-min_max_norm(cv2.resize(anomaly_map,(h,w))).flatten()
+            #print(c.shape)
+            #t_sne([t_feat, s_feat], c)
+            #assert 1 == 2
+
+            #name = 0
+            #for anomaly_map in amap_list:
+            #    anomaly_map = gaussian_filter(anomaly_map, sigma=4)
+            #    ano_map = min_max_norm(anomaly_map)
+            #    ano_map = cvt2heatmap(ano_map * 255)
+                #ano_map = show_cam_on_image(img, ano_map)
+                #cv2.imwrite(str(name) + '.png', ano_map)
+                #plt.imshow(ano_map)
+                #plt.axis('off')
+                #plt.savefig(str(name) + '.png')
+                #plt.show()
+            #    name+=1
+            count += 1
+            #if count>20:
+            #    return 0
+                #assert 1==2
+'''
 
 def vis_nd(name, _class_):
     print(name,':',_class_)
@@ -236,7 +309,7 @@ def vis_nd(name, _class_):
 
     ckp_path = './checkpoints/' + name + '_' + str(_class_) + '.pth'
     train_dataloader, test_dataloader = load_data(name, _class_, batch_size=16)
-
+    
     encoder, bn = resnet18(pretrained=True)
     encoder = encoder.to(device)
     bn = bn.to(device)
@@ -287,8 +360,8 @@ def vis_nd(name, _class_):
             #plt.savefig('ad.png')
             #plt.show()
 
-            #gt = gt.cpu().numpy().astype(int)[0][0]*255
-            #cv2.imwrite('./results/'+_class_+'_'+str(count)+'_'+'gt.png', gt)
+            gt = gt.cpu().numpy().astype(int)[0][0]*255
+            cv2.imwrite('./results/'+_class_+'_'+str(count)+'_'+'gt.png', gt)
 
             #b, c, h, w = inputs[2].shape
             #t_feat = F.normalize(inputs[2], p=2).view(c, -1).permute(1, 0).cpu().numpy()
@@ -353,7 +426,7 @@ def compute_pro(masks: ndarray, amaps: ndarray, num_th: int = 200) -> None:
     assert isinstance(num_th, int), "type(num_th) must be int"
 
     df = pd.DataFrame([], columns=["pro", "fpr", "threshold"])
-    binary_amaps = np.zeros_like(amaps, dtype=np.bool)
+    binary_amaps = np.zeros_like(amaps, dtype=np.bool_)
 
     min_th = amaps.min()
     max_th = amaps.max()
@@ -375,7 +448,7 @@ def compute_pro(masks: ndarray, amaps: ndarray, num_th: int = 200) -> None:
         fp_pixels = np.logical_and(inverse_masks, binary_amaps).sum()
         fpr = fp_pixels / inverse_masks.sum()
 
-        df = df.append({"pro": mean(pros), "fpr": fpr, "threshold": th}, ignore_index=True)
+        df = df._append({"pro": mean(pros), "fpr": fpr, "threshold": th}, ignore_index=True)
 
     # Normalize FPR from 0 ~ 1 to 0 ~ 0.3
     df = df[df["fpr"] < 0.3]
@@ -405,7 +478,7 @@ def detection(encoder, bn, decoder, dataloader,device,_class_):
             outputs = decoder(bn(inputs))
             anomaly_map, _ = cal_anomaly_map(inputs, outputs, img.shape[-1], 'acc')
             anomaly_map = gaussian_filter(anomaly_map, sigma=4)
-
+            cv2.imwrite("D:\\github\\RD4AD\\"+str(time.time())+'_anomaly_map.jpg', anomaly_map)
 
             gt_list_sp.extend(label.cpu().data.numpy())
             prmax_list_sp.append(np.max(anomaly_map))
@@ -421,3 +494,11 @@ def detection(encoder, bn, decoder, dataloader,device,_class_):
         auroc_sp_max = round(roc_auc_score(gt_list_sp, prmax_list_sp), 4)
         auroc_sp_mean = round(roc_auc_score(gt_list_sp, prmean_list_sp), 4)
     return auroc_sp_max, auroc_sp_mean
+
+if __name__=="__main__":
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    item_list = ['carpet', 'bottle', 'hazelnut', 'leather', 'cable', 'capsule', 'grid', 'pill',
+                  'transistor', 'metal_nut', 'screw','toothbrush', 'zipper', 'tile', 'wood']
+    # item_list = ['channelbox']
+    for i in item_list:
+        visualization(i)

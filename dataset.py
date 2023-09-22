@@ -47,21 +47,24 @@ class MVTecDataset(torch.utils.data.Dataset):
 
         for defect_type in defect_types:
             if defect_type == 'good':
-                img_paths = glob.glob(os.path.join(self.img_path, defect_type) + "/*.png")
+                img_paths = glob.glob(os.path.join(self.img_path, defect_type) + "/*.*g")
                 img_tot_paths.extend(img_paths)
                 gt_tot_paths.extend([0] * len(img_paths))
                 tot_labels.extend([0] * len(img_paths))
                 tot_types.extend(['good'] * len(img_paths))
             else:
-                img_paths = glob.glob(os.path.join(self.img_path, defect_type) + "/*.png")
-                gt_paths = glob.glob(os.path.join(self.gt_path, defect_type) + "/*.png")
+                img_paths = glob.glob(os.path.join(self.img_path, defect_type) + "/*.*g")
+                gt_paths = glob.glob(os.path.join(self.gt_path, defect_type) + "/*.*g")
+                # img_paths = glob.glob(os.path.join(self.img_path, defect_type) + "/*.png")
+                # gt_paths = glob.glob(os.path.join(self.gt_path, defect_type) + "/*.png")
                 img_paths.sort()
                 gt_paths.sort()
                 img_tot_paths.extend(img_paths)
                 gt_tot_paths.extend(gt_paths)
                 tot_labels.extend([1] * len(img_paths))
                 tot_types.extend([defect_type] * len(img_paths))
-
+        # print(len(img_tot_paths))
+        # print(len(gt_tot_paths))
         assert len(img_tot_paths) == len(gt_tot_paths), "Something wrong with test and ground truth pair!"
 
         return img_tot_paths, gt_tot_paths, tot_labels, tot_types

@@ -2,11 +2,11 @@
  ## Implementation (Official Code ⭐️ ⭐️ ⭐️ )
 
 1. Environment
-	> pytorch == 1.91
+	> pytorch >= 1.91
 	
-	> torchvision == 0.10.1
+	> torchvision >= 0.10.1
 	
-	> numpy == 1.20.3
+	> numpy > 1.20.3
 	
 	> scipy == 1.7.1
 	
