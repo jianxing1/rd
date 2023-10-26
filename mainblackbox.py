@@ -4,7 +4,7 @@
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 #引入依赖项
 import torch
-from dataset import get_data_transforms
+from dataset import get_data_transforms,get_data_transforms_for_blackbox
 from torchvision.datasets import ImageFolder
 import numpy as np
 import random
@@ -63,27 +63,43 @@ def loss_concat(a, b):
 
 def train(_class_):
     print(_class_)
+    image_size={
+        "channel_1_9":[1024,1024],
+        "head_2":[512,512*3],
+        "bogie_2":[512,512*3],"channelbox_2":[1024,1024],"channel_2":[1024,20992],
+        "11_head":[512,512*3],
+        "13_channelbox":[1024,1024],
+        "21_head":[512,512*3],
+        "23_channelbox":[1024,1024],
+        "31_head":[512,512*3],
+        "33_channelbox":[1024,1024],
+        "36_bogie":[512,512*3],
+        "26_bogie":[512,512*3],
+        "41_head":[512,512*3],
+        "43_channelbox":[1024,1024],
+        "56_bogie":[512,512*3],
+        "53_channelbox":[1024,1024],}
     epochs = 200
     learning_rate = 0.005
-    batch_size = 16
-    image_size = 256
+    batch_size = 1
+    # image_size = 1024
         
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(device)
 
-    data_transform, gt_transform = get_data_transforms(image_size, image_size)
+    data_transform, gt_transform = get_data_transforms_for_blackbox(image_size[_class_][0], image_size[_class_][1])
+    # train_path = './ADdataset/' + _class_ + '/train'
+    # test_path = './ADdataset/' + _class_
     train_path = './ADdataset/' + _class_ + '/train'
-    test_path = './ADdataset/' + _class_
-    # train_path = './mvtec_anomaly_detection/' + _class_ + '/train'
     # test_path = './mvtec_anomaly_detection/' + _class_ 
-    ckp_path_root = './checkpoints3/' 
+    ckp_path_root = './checkpointsteds_2/' +_class_
     if not os.path.exists(ckp_path_root):
         os.makedirs(ckp_path_root)
     # ckp_path = ckp_path + 'wres50_'+_class_+'.pth'
     train_data = ImageFolder(root=train_path, transform=data_transform)
-    test_data = MVTecDataset(root=test_path, transform=data_transform, gt_transform=gt_transform, phase="test")
+    # test_data = MVTecDataset(root=test_path, transform=data_transform, gt_transform=gt_transform, phase="test")
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=False)
+    # test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=False)
 
     encoder, bn = wide_resnet50_2(pretrained=True)
     encoder = encoder.to(device)
@@ -98,6 +114,7 @@ def train(_class_):
         bn.train()
         decoder.train()
         loss_list = []
+        best = 999
         for img, label in train_dataloader:
             img = img.to(device)
             inputs = encoder(img)
@@ -108,20 +125,26 @@ def train(_class_):
             optimizer.step()
             loss_list.append(loss.item())
         print('epoch [{}/{}], loss:{:.4f}'.format(epoch + 1, epochs, np.mean(loss_list)))
-        if (epoch + 1) % 10 == 0:
-            auroc_px, auroc_sp, aupro_px = evaluation(encoder, bn, decoder, test_dataloader, device)
-            print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3}'.format(auroc_px, auroc_sp, aupro_px))
-            ckp_path = ckp_path_root + 'wres50_'+_class_+str(epoch)+'.pth'
-            torch.save({'bn': bn.state_dict(),
-                        'decoder': decoder.state_dict()}, ckp_path)
-    return auroc_px, auroc_sp, aupro_px
+        epochloss=np.mean(loss_list)
+        if epochloss<best:
+            best=epochloss
+            bestepoch = epoch+1
+            ckp_path = os.path.join(ckp_path_root, './wres50_'+_class_+best+'.pth')
+            torch.save({'bn': bn.state_dict(),'decoder': decoder.state_dict()}, ckp_path)
+        # if (epoch + 1) % 10 == 0:
+        #     # auroc_px, auroc_sp, aupro_px = evaluation(encoder, bn, decoder, test_dataloader, device)
+        #     # print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3}'.format(auroc_px, auroc_sp, aupro_px))
+        #     ckp_path =os.path.join(ckp_path_root, './wres50_'+_class_+str(epoch)+'.pth')
+        #     torch.save({'bn': bn.state_dict(),
+        #                 'decoder': decoder.state_dict()}, ckp_path)
+    return 0
 
 
 if __name__ == '__main__':
 
     setup_seed(111)
-    item_list = ['carpet', 'bottle', 'hazelnut', 'leather', 'cable', 'capsule', 'grid', 'pill',
-                 'transistor', 'metal_nut', 'screw','toothbrush', 'zipper', 'tile', 'wood']
+    # item_list = ['carpet', 'bottle', 'hazelnut', 'leather', 'cable', 'capsule', 'grid', 'pill',
+    #              'transistor', 'metal_nut', 'screw','toothbrush', 'zipper', 'tile', 'wood']
     # item_list_1=['channelbox_1','wasit_1','bogie_1','sandbox','gearbox_1']
     # item_list_2=['channelbox_2','wasit_2','bogie_2','sandbox','gearbox_2']
     # item_list_3=['channelbox_3','wasit_3','bogie_3','sandbox','gearbox_3']
@@ -131,7 +154,9 @@ if __name__ == '__main__':
     # item_list_7=['channelbox_7','wasit_7','bogie_7','sandbox','gearbox_7']
     # item_list_8=['channelbox_8','waist_8','sandbox_8','gearbox_8']
     # item_list_9=['channelbox_9','waist_9','sandbox_9','gearbox_9']
-    # item_list_1=['bolts']
+    # item_list=["11_head","33_channelbox"]
     
-    for i in item_list:
-        train(i)
+    # for i in item_list:
+    #     train(i)
+    train('41_head')
+

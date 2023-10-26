@@ -22,7 +22,43 @@ def get_data_transforms(size, isize):
         transforms.ToTensor()])
     return data_transforms, gt_transforms
 
+def get_data_transforms_for_blackbox(size1, size2):
+    mean_train = [0.485, 0.456, 0.406]
+    std_train = [0.229, 0.224, 0.225]
+    data_transforms = transforms.Compose([
+        transforms.Resize((size1, size2)),
+        # transforms.CenterCrop(isize),
+        transforms.ToTensor(),
+        # transforms.CenterCrop(args.input_size),
+        transforms.Normalize(mean=mean_train,
+                             std=std_train)])
+    gt_transforms = transforms.Compose([
+        transforms.Resize((size1,size2)),
+        # transforms.CenterCrop(isize),
+        
+        transforms.ToTensor()])
+    return data_transforms, gt_transforms
 
+class InferDataset(torch.utils.data.Dataset):
+    def __init__(self, img_path,transform):
+        self.img_path=img_path
+        self.tramsform=transform
+        self.img_paths=self.load_dataset()
+        
+    def load_dataset(self):
+        img_paths=glob.glob(self.img_path+'/*.*g')
+        img_paths.sort()
+        self.data_len=len(self.img_path)
+        return img_paths
+
+    def __getitem__(self, index):
+        img_name=self.img_paths[index]
+        img=Image.open(img_name)
+        img=self.tramsform(img)
+        return img
+
+    def __len__(self):
+        return len(self.img_paths)
 
 class MVTecDataset(torch.utils.data.Dataset):
     def __init__(self, root, transform, gt_transform, phase):
@@ -77,7 +113,8 @@ class MVTecDataset(torch.utils.data.Dataset):
         img = Image.open(img_path).convert('RGB')
         img = self.transform(img)
         if gt == 0:
-            gt = torch.zeros([1, img.size()[-2], img.size()[-2]])
+            # print(img.size())
+            gt = torch.zeros([1, img.size()[-2], img.size()[-1]])
         else:
             gt = Image.open(gt)
             gt = self.gt_transform(gt)
