@@ -112,8 +112,9 @@ def test(_class_):
     print(_class_)
 
     data_transform, gt_transform = get_data_transforms(256, 256)
-    test_path = '../mvtec/' + _class_
-    ckp_path = './checkpoints/' + 'rm_1105_wres50_ff_mm_' + _class_ + '.pth'
+    test_path = '../ADdataset/' + _class_
+    #ckp_path = './checkpoints/' + 'rm_1105_wres50_ff_mm_' + _class_ + '.pth'
+    ckp_path = './checkpoints3/' + 'wres50_'+_class_+'199.pth'
     test_data = MVTecDataset(root=test_path, transform=data_transform, gt_transform=gt_transform, phase="test")
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=False)
     encoder, bn = wide_resnet50_2(pretrained=True)
@@ -140,12 +141,14 @@ def visualization(_class_):
     print(device)
 
     data_transform, gt_transform = get_data_transforms(256, 256)
-    test_path = './mvtec_anomaly_detection/' + _class_
-    ckp_path = './checkpoints/' + 'wres50_'+_class_+'199.pth'
+    #test_path = './mvtec_anomaly_detection/' + _class_
+    test_path = './ADdataset/' + _class_
+    ckp_path = './checkpoints3/' + 'wres50_'+_class_+'199.pth'
     test_data = MVTecDataset(root=test_path, transform=data_transform, gt_transform=gt_transform, phase="test")
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=1, shuffle=False)
     
-    train_path = './mvtec_anomaly_detection/' + _class_ + '/train'
+    #train_path = './mvtec_anomaly_detection/' + _class_ + '/train'
+    train_path = './ADdataset/' + _class_ + '/train'
     train_data = ImageFolder(root=train_path, transform=data_transform)
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True)
 
@@ -307,7 +310,7 @@ def vis_nd(name, _class_):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(device)
 
-    ckp_path = './checkpoints/' + name + '_' + str(_class_) + '.pth'
+    ckp_path = './checkpoints3/' + name + '_' + str(_class_) + '.pth'
     train_dataloader, test_dataloader = load_data(name, _class_, batch_size=16)
     
     encoder, bn = resnet18(pretrained=True)
@@ -497,8 +500,9 @@ def detection(encoder, bn, decoder, dataloader,device,_class_):
 
 if __name__=="__main__":
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    item_list = ['carpet', 'bottle', 'hazelnut', 'leather', 'cable', 'capsule', 'grid', 'pill',
-                  'transistor', 'metal_nut', 'screw','toothbrush', 'zipper', 'tile', 'wood']
+    #item_list = ['carpet', 'bottle', 'hazelnut', 'leather', 'cable', 'capsule', 'grid', 'pill',
+    #              'transistor', 'metal_nut', 'screw','toothbrush', 'zipper', 'tile', 'wood']
     # item_list = ['channelbox']
+    item_list = ['dia_tool', 'spe_tool', 'tri_tool']
     for i in item_list:
         visualization(i)

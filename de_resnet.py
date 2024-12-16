@@ -154,6 +154,23 @@ class Bottleneck(nn.Module):
 
         return out
 
+class FeatureProcessing(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(FeatureProcessing, self).__init__()
+        self.feature_generation = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+        )
+
+    def forward(self, f_i):
+        batch_size, _, height, width = f_i.shape
+        mask = torch.randint(0, 2, (batch_size, 1, height, width)).float().to(f_i.device)
+        f_m = f_i * mask
+        f_reg = self.feature_generation(f_m)
+        return f_reg
+
 
 class ResNet(nn.Module):
 
@@ -238,7 +255,7 @@ class ResNet(nn.Module):
             layers.append(block(self.inplanes, planes, groups=self.groups,
                                 base_width=self.base_width, dilation=self.dilation,
                                 norm_layer=norm_layer))
-
+        #layers.append(FeatureProcessing(planes * block.expansion, planes * block.expansion))
         return nn.Sequential(*layers)
 
     def _forward_impl(self, x: Tensor) -> Tensor:
@@ -261,6 +278,31 @@ class ResNet(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def _resnet(
